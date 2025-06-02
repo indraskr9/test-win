@@ -1,6 +1,7 @@
-name: programmingwithkumaresan
+name: win10-ngrock
 
-on: [push, workflow_dispatch]
+on:
+  workflow_dispatch:
 
 jobs:
   build:

@@ -1,4 +1,4 @@
-name: Programmingwithkumaresan
+name: win10-lite-manager
 
 on:
   workflow_dispatch:
