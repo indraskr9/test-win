@@ -1,39 +1,37 @@
-name: Windows RDP
+name: RDP-Windows-2025 (arifkembiri)
 
-on:
-  workflow_dispatch:
+on: [push, workflow_dispatch]
 
 jobs:
-  rdp:
-    runs-on: windows-latest
-
+  build:
+    runs-on: windows-2025
+    timeout-minutes: 9999
     steps:
-      - name: Download and extract ngrok
-        run: |
-          Invoke-WebRequest https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-stable-windows-amd64.zip -OutFile ngrok.zip
-          Expand-Archive ngrok.zip -DestinationPath .
-          Rename-Item -Path ".\ngrok.exe" -NewName "ngrok.exe"
-
-      - name: Add ngrok authtoken
-        run: .\ngrok.exe config add-authtoken $Env:NGROK_AUTH_TOKEN
+      - name: Deploy ngrok client
         shell: powershell
+        run: |
+          Invoke-WebRequest https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-windows-amd64.zip -OutFile ngrok.zip
+          Expand-Archive ngrok.zip
+
+      - name: Auth
         env:
           NGROK_AUTH_TOKEN: ${{ secrets.NGROK_AUTH_TOKEN }}
+        run: .\ngrok\ngrok.exe authtoken $Env:NGROK_AUTH_TOKEN
 
-      - name: Enable RDP access
+      - name: Enable TS
         run: |
-          net user runneradmin MySecureP@ssw0rd
+          Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server'-name "fDenyTSConnections" -Value 0
           Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
-          Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 0
+          Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -name "UserAuthentication" -Value 1
+          Set-LocalUser -Name "runneradmin" -Password (ConvertTo-SecureString -AsPlainText "FaakRDP!r1" -Force)
 
-      - name: Start ngrok tunnel
-        run: Start-Process -NoNewWindow -FilePath ".\ngrok.exe" -ArgumentList "tcp 3389"
-
-      - name: Show ngrok tunnel info
+      - name: Change Theme to Dark
         run: |
-          Start-Sleep -Seconds 20
-          echo "👤 Username: runneradmin"
-          echo "🔐 Password: MySecureP@ssw0rd"
+          Reg ADD "HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Themes\Personalize" /v SystemUsesLightTheme /t REG_DWORD /d 0 /f
+          Reg ADD "HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Themes\Personalize" /v AppsUseLightTheme /t REG_DWORD /d 0 /f
 
-      - name: Keep Alive
-        run: Start-Sleep -Seconds 21600 # 6 hours
+      - name: Forbid Hide Known File Extention
+        run: Reg ADD "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" /v HideFileExt /t REG_DWORD /d 0 /f
+
+      - name: Create Tunnel
+        run: .\ngrok\ngrok.exe tcp 3389
