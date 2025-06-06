@@ -1,0 +1,38 @@
+name: RDPX Windows
+
+on:
+  workflow_dispatch:
+
+jobs:
+  setup-rdp-tunnel:
+    runs-on: windows-latest
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v2
+
+      - name: Enable RDP
+        run: |
+          Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 0
+          Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "UserAuthentication" -Value 1
+          Set-LocalUser -Name "runneradmin" -Password (ConvertTo-SecureString -AsPlainText "p@ssw0rd!" -Force)
+
+      - name: Enable RDP Firewall Rules
+        run: Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
+
+      - name: Download Tailscale
+        run: |
+          Invoke-WebRequest -Uri "https://pkgs.tailscale.com/stable/tailscale-setup-1.66.4-amd64.msi" -OutFile "$env:TEMP\tailscale.msi"
+
+      - name: Install Tailscale
+        run: |
+          Start-Process msiexec.exe -ArgumentList "/i `"$env:TEMP\tailscale.msi`" /quiet /norestart" -Wait
+
+      - name: Authenticate to Tailscale
+        env:
+          TS_AUTHKEY: ${{ secrets.TS_AUTHKEY }}
+        run: |
+          & "C:\Program Files\Tailscale\tailscale.exe" up --authkey $env:TS_AUTHKEY --hostname github-runner --accept-routes
+
+      - name: Keep the GitHub Action Runner Alive (6 Hours)
+        run: Start-Sleep -Seconds 21600
