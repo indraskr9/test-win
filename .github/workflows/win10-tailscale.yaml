@@ -14,8 +14,8 @@ jobs:
       - name: Enable RDP and Set User
         run: |
           Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 0
-          Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "UserAuthentication" -Value 1 # Keeps NLA enabled
-          # Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "UserAuthentication" -Value 0 # Use for troubleshooting NLA issues (less secure)
+          # Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "UserAuthentication" -Value 1 # Keeps NLA enabled
+          Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "UserAuthentication" -Value 0 # Use for troubleshooting NLA issues (less secure)
           
           # Create and set password for runneradmin
           $Password = ConvertTo-SecureString -AsPlainText "p@ssw0rd!" -Force
