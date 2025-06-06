@@ -11,28 +11,81 @@ jobs:
       - name: Check out the repository
         uses: actions/checkout@v2
 
-      - name: Enable RDP
+      - name: Enable RDP and Set User
         run: |
           Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 0
-          Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "UserAuthentication" -Value 1
-          Set-LocalUser -Name "runneradmin" -Password (ConvertTo-SecureString -AsPlainText "p@ssw0rd!" -Force)
+          Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "UserAuthentication" -Value 1 # Keeps NLA enabled
+          # Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "UserAuthentication" -Value 0 # Use for troubleshooting NLA issues (less secure)
+          
+          # Create and set password for runneradmin
+          $Password = ConvertTo-SecureString -AsPlainText "p@ssw0rd!" -Force
+          $User = Get-LocalUser -Name "runneradmin" -ErrorAction SilentlyContinue
+          if ($null -eq $User) {
+              New-LocalUser -Name "runneradmin" -Password $Password -Description "GitHub Actions RDP User"
+          } else {
+              $User | Set-LocalUser -Password $Password
+          }
+          Add-LocalGroupMember -Group "Remote Desktop Users" -Member "runneradmin"
+          Add-LocalGroupMember -Group "Administrators" -Member "runneradmin" # Add to Administrators for more control if needed
+        shell: pwsh
+
+      - name: Ensure RDP Service is Running
+        run: |
+          Get-Service -Name TermService | Select-Object Name, Status
+          Get-Service -Name TermService | Set-Service -Status Running
+          # Restart-Service -Name TermService -Force # Uncomment if you think a restart helps
+        shell: pwsh
 
       - name: Enable RDP Firewall Rules
         run: Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
+        shell: pwsh
+
+      - name: Verify RDP Port is Listening
+        run: |
+          netstat -ano | Select-String "3389"
+          Get-NetTCPConnection -State Listen | Where-Object { $_.LocalPort -eq 3389 }
+        shell: pwsh
 
       - name: Download Tailscale
         run: |
           Invoke-WebRequest -Uri "https://pkgs.tailscale.com/stable/tailscale-setup-1.66.4-amd64.msi" -OutFile "$env:TEMP\tailscale.msi"
+        shell: pwsh
 
       - name: Install Tailscale
         run: |
           Start-Process msiexec.exe -ArgumentList "/i `"$env:TEMP\tailscale.msi`" /quiet /norestart" -Wait
+        shell: pwsh
 
       - name: Authenticate to Tailscale
         env:
           TS_AUTHKEY: ${{ secrets.TS_AUTHKEY }}
         run: |
           & "C:\Program Files\Tailscale\tailscale.exe" up --authkey $env:TS_AUTHKEY --hostname github-runner --accept-routes
+        shell: pwsh
+
+      - name: Get Tailscale IP Address
+        id: get-tailscale-ip
+        run: |
+          $tailscale_ip = & "C:\Program Files\Tailscale\tailscale.exe" ip -4
+          echo "TAILSCALE_IP=$tailscale_ip" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+        shell: pwsh
+
+      - name: Display Tailscale IP Address
+        run: |
+          echo "Connect to this RDP IP address via Tailscale: ${{ steps.get-tailscale-ip.outputs.TAILSCALE_IP }}"
+          echo "Username: runneradmin"
+          echo "Password: p@ssw0rd!"
+        shell: pwsh
+
+      - name: Display System Information for Debugging
+        run: |
+          Get-ComputerInfo | Select-Object WindowsProductName, WindowsBuildLabEx, OsHardwareAbstractionLayer, OsLastBootUpTime, OsInstallDate
+          whoami
+          ipconfig /all
+          netsh advfirewall firewall show rule name="Remote Desktop (TCP-In)"
+          netsh advfirewall firewall show rule name="Remote Desktop (UDP-In)"
+        shell: pwsh
 
       - name: Keep the GitHub Action Runner Alive (6 Hours)
         run: Start-Sleep -Seconds 21600
+        shell: pwsh
