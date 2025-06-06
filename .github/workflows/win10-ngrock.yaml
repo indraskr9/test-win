@@ -1,6 +1,6 @@
 name: RDP-Windows-2025 (arifkembiri)
 
-on: [push, workflow_dispatch]
+on: [workflow_dispatch]
 
 jobs:
   build:
