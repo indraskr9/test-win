@@ -32,9 +32,6 @@ jobs:
       - name: Show ngrok tunnel info
         run: |
           Start-Sleep -Seconds 20
-          $tunnel = Invoke-RestMethod http://127.0.0.1:4040/api/tunnels
-          $url = $tunnel.tunnels[0].public_url -replace "tcp://", ""
-          echo "📡 RDP Address: $url"
           echo "👤 Username: runneradmin"
           echo "🔐 Password: MySecureP@ssw0rd"
 
