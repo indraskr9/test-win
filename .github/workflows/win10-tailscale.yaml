@@ -81,8 +81,6 @@ jobs:
           Get-ComputerInfo | Select-Object WindowsProductName, WindowsBuildLabEx, OsHardwareAbstractionLayer, OsLastBootUpTime, OsInstallDate
           whoami
           ipconfig /all
-          netsh advfirewall firewall show rule name="Remote Desktop (TCP-In)"
-          netsh advfirewall firewall show rule name="Remote Desktop (UDP-In)"
         shell: pwsh
 
       - name: Keep the GitHub Action Runner Alive (6 Hours)
