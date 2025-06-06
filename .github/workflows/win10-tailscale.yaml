@@ -26,7 +26,6 @@ jobs:
               $User | Set-LocalUser -Password $Password
           }
           Add-LocalGroupMember -Group "Remote Desktop Users" -Member "runneradmin"
-          Add-LocalGroupMember -Group "Administrators" -Member "runneradmin" # Add to Administrators for more control if needed
         shell: pwsh
 
       - name: Ensure RDP Service is Running
